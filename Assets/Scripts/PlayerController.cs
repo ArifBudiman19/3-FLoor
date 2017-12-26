@@ -96,8 +96,6 @@ public class PlayerController : MonoBehaviour {
 				
 				floorManager.move(_inputDelay);
 				_position = floorManager.getPlayerPosition();
-				Debug.Log("UP pos" + _position);
-				
 
 			}else if(Input.GetButton("Right")){
 				//Debug.Log("RIGHT");
