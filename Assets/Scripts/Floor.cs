@@ -21,6 +21,13 @@ public class Floor:MonoBehaviour{
 
 	public Floor[] neightbours =  new Floor[4];
 
+	public bool HasNeighbours(){
+		for(int i = 0; i < neightbours.Length; i++){
+			if(neightbours[i] != null) return true;
+		}
+		return false;
+	}
+
 	void Update(){
 		if(hasPlayer){
 			spriteRenderer.color = new Color32(192,57,43,255);

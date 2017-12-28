@@ -20,17 +20,27 @@ public class PlayerController : MonoBehaviour {
 	public GameObject panelNewHighScore;
 	public GameObject exitPanel;
 	[Header("Default")]
+	public int deadCounter = 0;
 	public bool isDead = false;
-	public float delayTime = 30.0f;
+	public float delayTime = 60.0f;
+	public float delayAdd = 0.05f;
 	public float _inputDelay = 0.09f;
 	[Header("Audio")]
 	public AudioSource _audioSource;
 	public AudioClip[] _clips;
 	private bool _onDelay = false;
 	private int _position = 0;
+	private int _lastPosition = 0;
 	private int _step = 0;
 	private int _bestStep = 0;
 	private float _delayTime;
+	private float _dDelayP = 0.0f;
+	private float _dDelayN = 0.0f;
+
+	void Awake(){
+		_dDelayP = _inputDelay + delayAdd;
+		_dDelayN = _inputDelay - delayAdd;
+	}
 
 	void Start(){
 		_delayTime = delayTime;
@@ -47,6 +57,8 @@ public class PlayerController : MonoBehaviour {
 			_audioSource.Play();
 			panelRetry.SetActive(true);
 			_textScore.text = _step.ToString();
+
+			deadCounter += 1;
 
 			if(!PlayerPrefs.HasKey("BestScore")){
 				PlayerPrefs.SetInt("BestScore", _step);
@@ -68,8 +80,9 @@ public class PlayerController : MonoBehaviour {
 		if(_delayTime > 0){
 			if(isDead) _delayTime = 0;
 			float delta = (Time.deltaTime * _step)/1.34f;
-			if(delta>_inputDelay) 
-				delta = _inputDelay - 0.0005f;
+			if(delta > delayTime - _inputDelay) {
+				delta -= (delayAdd + _inputDelay);
+			}
 			_delayTime = _delayTime - delta;
 			_slider.value = _delayTime/delayTime;
 		}
@@ -81,57 +94,16 @@ public class PlayerController : MonoBehaviour {
 		if(!_onDelay && !isDead){
 			
 			if(Input.GetButton("Up")){
-				//Debug.Log("UP" + floorManager.floors[_position].id);
-				DelayAndCalcPos();
-				floorManager.floors[_position].hasPlayer = false;
-				//Debug.Log("UP" + floorManager.floors[_position].id);
-				if(floorManager.floors[_position].neightbours[0] == null)
-					isDead = true;
-				else
-				{
-					floorManager.floors[_position].neightbours[0].hasPlayer = true;
-					//Debug.Log("MAsuk INI");
-				}
-					
-				
-				floorManager.move(_inputDelay);
-				_position = floorManager.getPlayerPosition();
+				Move(0);
 
 			}else if(Input.GetButton("Right")){
-				//Debug.Log("RIGHT");
-				DelayAndCalcPos();
-				floorManager.floors[_position].hasPlayer = false;
-				if(floorManager.floors[_position].neightbours[1] == null)
-					isDead = true;
-				else	
-					floorManager.floors[_position].neightbours[1].hasPlayer = true;
-				
-				floorManager.move(_inputDelay);
-				_position = floorManager.getPlayerPosition();
+				Move(1);
 
 			}else if(Input.GetButton("Down")){
-				//Debug.Log("DOWN");
-				DelayAndCalcPos();
-				floorManager.floors[_position].hasPlayer = false;
-				if(floorManager.floors[_position].neightbours[2] == null)
-					isDead = true;
-				else
-					floorManager.floors[_position].neightbours[2].hasPlayer = true;
-				
-				floorManager.move(_inputDelay);
-				_position = floorManager.getPlayerPosition();
+				Move(2);
 
 			}else if(Input.GetButton("Left")){
-				//Debug.Log("LEFT");
-				DelayAndCalcPos();
-				floorManager.floors[_position].hasPlayer = false;
-					if(floorManager.floors[_position].neightbours[3] == null)
-					isDead = true;
-				else
-					floorManager.floors[_position].neightbours[3].hasPlayer = true;
-				
-				floorManager.move(_inputDelay);
-				_position = floorManager.getPlayerPosition();
+				Move(3);
 
 			}
 		}
@@ -140,12 +112,13 @@ public class PlayerController : MonoBehaviour {
 	void FixedUpdate(){
 		if(_position < 4 && _position > -1){
 			Transform _transPlayer = floorManager.floors[_position].transform;
-			_camera.transform.position = Vector3.Lerp(_camera.transform.position,new Vector3(_transPlayer.position.x, _transPlayer.position.y-1 ,_camera.transform.position.z), 0.1f);
+			_camera.transform.position = Vector3.Lerp(_camera.transform.position,new Vector3(_transPlayer.position.x, _transPlayer.position.y-1 ,_camera.transform.position.z), 1f);
 		}			
 	}
 
 	void DelayAndCalcPos(){
 		_position = floorManager.getPlayerPosition();
+		_lastPosition = _position;
 		StartCoroutine(InputDelay(_inputDelay));
 		if(!isDead){
 			_audioSource.clip = _clips[0];
@@ -162,7 +135,7 @@ public class PlayerController : MonoBehaviour {
 		_onDelay = false;
 	}
 
-	private void move(int _index){
+	private void Move(int _index){
 		if(!_onDelay && !isDead){
 			DelayAndCalcPos();
 			floorManager.floors[_position].hasPlayer = false;
@@ -171,22 +144,23 @@ public class PlayerController : MonoBehaviour {
 			else
 				floorManager.floors[_position].neightbours[_index].hasPlayer = true;
 			
-			floorManager.move(_inputDelay);
+			floorManager.Move(_inputDelay, _lastPosition);
 			_position = floorManager.getPlayerPosition();
+			floorManager.FixFloor();
 		}
 	}
 
 	public void moveUp(){
-		move(0);
+		Move(0);
 	}
 	public void moveRight(){
-		move(1);
+		Move(1);
 	}
 	public void moveDown(){
-		move(2);
+		Move(2);
 	}
 	public void moveLeft(){
-		move(3);
+		Move(3);
 	}
 
 	public void Restart(){
@@ -199,7 +173,12 @@ public class PlayerController : MonoBehaviour {
 		_step = 0;
 		_textStep.text = _step.ToString();
 		_delayTime = delayTime;
-		_position = Random.Range(0,3);
+		_position = 0;
+		bool _successed = false;
+		while(!_successed){
+			_position = Random.Range(0,3);
+			if(floorManager.floors[_position].isEndPoint) _successed = true;
+		}
 		floorManager.floors[_position].hasPlayer = true;
 		isDead = false;
 		Start();

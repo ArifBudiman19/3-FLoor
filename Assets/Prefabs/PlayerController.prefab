@@ -143,9 +143,11 @@ MonoBehaviour:
   panelHighScore: {fileID: 0}
   panelNewHighScore: {fileID: 0}
   exitPanel: {fileID: 0}
+  deadCounter: 0
   isDead: 0
-  delayTime: 3
-  _inputDelay: 0.156
+  delayTime: 6
+  delayAdd: 0.005
+  _inputDelay: 0.1
   _audioSource: {fileID: 82140676060831026}
   _clips:
   - {fileID: 8300000, guid: 2c5292ba5cf254919a6b9e2b18e04f49, type: 3}
