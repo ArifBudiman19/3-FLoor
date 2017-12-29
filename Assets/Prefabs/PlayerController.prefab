@@ -145,7 +145,7 @@ MonoBehaviour:
   exitPanel: {fileID: 0}
   deadCounter: 0
   isDead: 0
-  delayTime: 6
+  delayTime: 10
   delayAdd: 0.005
   _inputDelay: 0.1
   _audioSource: {fileID: 82140676060831026}

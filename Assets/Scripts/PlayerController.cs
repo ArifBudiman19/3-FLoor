@@ -10,12 +10,14 @@ public class PlayerController : MonoBehaviour {
 	[Header("Time Countdown")]
 	public Slider _slider;
 	[Header("Text UI")]
+	public Text _textFeedback;
 	public Text _textStep;
 	public Text _textBestStep;
 	public Text _textScore;
 	public Text _textBestScore;
 	[Header("Panel UI")]
 	public GameObject panelRetry;
+	public GameObject panelFeedback;
 	public GameObject panelHighScore;
 	public GameObject panelNewHighScore;
 	public GameObject exitPanel;
@@ -34,13 +36,7 @@ public class PlayerController : MonoBehaviour {
 	private int _step = 0;
 	private int _bestStep = 0;
 	private float _delayTime;
-	private float _dDelayP = 0.0f;
-	private float _dDelayN = 0.0f;
-
-	void Awake(){
-		_dDelayP = _inputDelay + delayAdd;
-		_dDelayN = _inputDelay - delayAdd;
-	}
+	private bool _deadDisplay = false;
 
 	void Start(){
 		_delayTime = delayTime;
@@ -48,47 +44,41 @@ public class PlayerController : MonoBehaviour {
 			_bestStep = PlayerPrefs.GetInt("BestScore", 0);
 		}
 		_textBestStep.text = "<color=#D7DCDEFF>BEST</color> <b>"+ _bestStep.ToString()+"</b>  ";
+		_deadDisplay = false;
 	}
 	void Update(){
 
-		if(isDead && !panelRetry.activeSelf){
+		if(isDead && !_deadDisplay){
+			_deadDisplay = true;
 			_audioSource.Stop();
 			_audioSource.clip = _clips[1];
 			_audioSource.Play();
-			panelRetry.SetActive(true);
-			_textScore.text = _step.ToString();
-
 			deadCounter += 1;
 
-			if(!PlayerPrefs.HasKey("BestScore")){
-				PlayerPrefs.SetInt("BestScore", _step);
-				_textBestScore.text = _step.ToString();
-			}else{
-				_bestStep = PlayerPrefs.GetInt("BestScore",0);
-				if(_step > _bestStep){
-					panelNewHighScore.SetActive(true);
-					PlayerPrefs.SetInt("BestScore", _step);
-				}
-				_textBestScore.text = _bestStep.ToString();
-			}
+			//TODO open panel feedback
+			OpenPanelFeedback();
 
-		}else if(!isDead && panelRetry.activeSelf){
-			panelNewHighScore.SetActive(false);
-			panelRetry.SetActive(false);
+		}else if(!isDead){
+			if(panelFeedback.activeSelf){
+				panelFeedback.SetActive(false);
+			}
+			
+			if(panelRetry.activeSelf){
+				panelNewHighScore.SetActive(false);
+				panelRetry.SetActive(false);
+			}
 		}
 
 		if(_delayTime > 0){
 			if(isDead) _delayTime = 0;
-			float delta = (Time.deltaTime * _step)/1.34f;
-			if(delta > delayTime - _inputDelay) {
-				delta -= (delayAdd + _inputDelay);
-			}
-			_delayTime = _delayTime - delta;
+			_delayTime = _delayTime - (Time.deltaTime * _step)*0.74f;
 			_slider.value = _delayTime/delayTime;
 		}
 
-		if(_delayTime <= 0){
+		if(_delayTime <= 0 && !isDead){
 			isDead = true;
+			_textFeedback.text = "TIME'S UP !!!";
+			Debug.Log("TimesUp");
 		}
 
 		if(!_onDelay && !isDead){
@@ -112,7 +102,7 @@ public class PlayerController : MonoBehaviour {
 	void FixedUpdate(){
 		if(_position < 4 && _position > -1){
 			Transform _transPlayer = floorManager.floors[_position].transform;
-			_camera.transform.position = Vector3.Lerp(_camera.transform.position,new Vector3(_transPlayer.position.x, _transPlayer.position.y-1 ,_camera.transform.position.z), 1f);
+			_camera.transform.position = Vector3.Lerp(_camera.transform.position,new Vector3(_transPlayer.position.x, _transPlayer.position.y-1 ,_camera.transform.position.z), 0.1f);
 		}			
 	}
 
@@ -139,12 +129,14 @@ public class PlayerController : MonoBehaviour {
 		if(!_onDelay && !isDead){
 			DelayAndCalcPos();
 			floorManager.floors[_position].hasPlayer = false;
-			if(floorManager.floors[_position].neightbours[_index] == null)
+			if(floorManager.floors[_position].neightbours[_index] == null){
 				isDead = true;
-			else
+				_textFeedback.text = "WRONG STEP !!!";
+				Debug.Log("Wrong step");
+			}else
 				floorManager.floors[_position].neightbours[_index].hasPlayer = true;
 			
-			floorManager.Move(_inputDelay, _lastPosition);
+			floorManager.Move(_inputDelay);
 			_position = floorManager.getPlayerPosition();
 			floorManager.FixFloor();
 		}
@@ -197,5 +189,40 @@ public class PlayerController : MonoBehaviour {
 		_audioSource.clip = _clips[3];
 		_audioSource.Play();
 		Application.Quit();
+	}
+	IEnumerator TransitionToRetry(float delay){
+		yield return new WaitForSeconds(delay);
+		if(panelFeedback.activeSelf)
+			panelFeedback.SetActive(false);
+		
+		OpenPanelRetry();
+		yield return null;
+	}
+
+	public void OpenPanelFeedback(){
+		if(!panelFeedback.activeSelf){
+			panelFeedback.SetActive(true);
+		}
+
+		StartCoroutine(TransitionToRetry(1.0f));
+	}
+	
+	public void OpenPanelRetry(){
+		if(!panelRetry.activeSelf){	
+			panelRetry.SetActive(true);
+		}
+		_textScore.text = _step.ToString();
+
+		if(!PlayerPrefs.HasKey("BestScore")){
+			PlayerPrefs.SetInt("BestScore", _step);
+			_textBestScore.text = _step.ToString();
+		}else{
+			_bestStep = PlayerPrefs.GetInt("BestScore",0);
+			if(_step > _bestStep){
+				panelNewHighScore.SetActive(true);
+				PlayerPrefs.SetInt("BestScore", _step);
+			}
+			_textBestScore.text = _bestStep.ToString();
+		}
 	}
 }
