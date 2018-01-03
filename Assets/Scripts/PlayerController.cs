@@ -2,8 +2,13 @@
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
+using GooglePlayGames;
+using GooglePlayGames.BasicApi;
 
 public class PlayerController : MonoBehaviour {
+	
+	public static PlayerController Instance {get; private set;}
+
 	[Header("Main")]
 	public GameObject _camera;
 	public FloorManager floorManager;
@@ -15,6 +20,7 @@ public class PlayerController : MonoBehaviour {
 	public Text _textBestStep;
 	public Text _textScore;
 	public Text _textBestScore;
+	public Text _textUsername;
 	[Header("Panel UI")]
 	public GameObject panelRetry;
 	public GameObject panelFeedback;
@@ -32,20 +38,52 @@ public class PlayerController : MonoBehaviour {
 	public AudioClip[] _clips;
 	private bool _onDelay = false;
 	private int _position = 0;
-	private int _lastPosition = 0;
+	//private int _lastPosition = 0;
 	private int _step = 0;
 	private int _bestStep = 0;
 	private float _delayTime;
 	private bool _deadDisplay = false;
+	private string _username = "";
 
 	void Start(){
+		Instance = this;
+
 		_delayTime = delayTime;
 		if(PlayerPrefs.HasKey("BestScore")){
 			_bestStep = PlayerPrefs.GetInt("BestScore", 0);
 		}
 		_textBestStep.text = "<color=#D7DCDEFF>BEST</color> <b>"+ _bestStep.ToString()+"</b>  ";
 		_deadDisplay = false;
+
+		PlayGamesClientConfiguration config = new PlayGamesClientConfiguration.Builder().Build();
+		PlayGamesPlatform.InitializeInstance(config);
+		PlayGamesPlatform.Activate();
+
+		SignIn();
 	}
+
+	void SignIn(){
+		Social.localUser.Authenticate((bool success) => {
+			if(success){
+				_username = ((PlayGamesLocalUser)Social.localUser).userName;
+			}
+		});
+	}
+	#region Leaderboards
+	public static void AddScoreToLeaderboard(string leaderboardId, long score){
+		Social.ReportScore(score, leaderboardId, success => {});
+	}
+	public static void ShowLeaderboardUI(){
+		//Social.ShowLeaderboardUI();
+		Instance._audioSource.Stop();
+		Instance._audioSource.clip = Instance._clips[0];
+		Instance._audioSource.Play();
+		//PlayGamesPlatform.Instance.ShowLeaderboardUI(GPGSIds.leaderboard_leaderboard);
+		((PlayGamesPlatform)Social.Active).ShowLeaderboardUI(GPGSIds.leaderboard_leaderboard);
+	}
+	#endregion /Leaderboards
+
+
 	void Update(){
 
 		if(isDead && !_deadDisplay){
@@ -108,7 +146,7 @@ public class PlayerController : MonoBehaviour {
 
 	void DelayAndCalcPos(){
 		_position = floorManager.getPlayerPosition();
-		_lastPosition = _position;
+		//_lastPosition = _position;
 		StartCoroutine(InputDelay(_inputDelay));
 		if(!isDead){
 			_audioSource.clip = _clips[0];
@@ -173,7 +211,13 @@ public class PlayerController : MonoBehaviour {
 		}
 		floorManager.floors[_position].hasPlayer = true;
 		isDead = false;
-		Start();
+		
+		_delayTime = delayTime;
+		if(PlayerPrefs.HasKey("BestScore")){
+			_bestStep = PlayerPrefs.GetInt("BestScore", 0);
+		}
+		_textBestStep.text = "<color=#D7DCDEFF>BEST</color> <b>"+ _bestStep.ToString()+"</b>  ";
+		_deadDisplay = false;
 	}
 
 	public void OpenExit(){
@@ -211,11 +255,19 @@ public class PlayerController : MonoBehaviour {
 		if(!panelRetry.activeSelf){	
 			panelRetry.SetActive(true);
 		}
+		
+		if(_username.Equals("")){
+			_textUsername.text = "";
+		}else{
+			_textUsername.text = _username;
+		}
+
 		_textScore.text = _step.ToString();
 
 		if(!PlayerPrefs.HasKey("BestScore")){
 			PlayerPrefs.SetInt("BestScore", _step);
 			_textBestScore.text = _step.ToString();
+			PlayerController.AddScoreToLeaderboard(GPGSIds.leaderboard_leaderboard, _step);
 		}else{
 			_bestStep = PlayerPrefs.GetInt("BestScore",0);
 			if(_step > _bestStep){
@@ -223,6 +275,7 @@ public class PlayerController : MonoBehaviour {
 				PlayerPrefs.SetInt("BestScore", _step);
 			}
 			_textBestScore.text = _bestStep.ToString();
+			PlayerController.AddScoreToLeaderboard(GPGSIds.leaderboard_leaderboard, _step);
 		}
 	}
 }
