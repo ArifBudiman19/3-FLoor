@@ -26,7 +26,8 @@ public class PlayerController : MonoBehaviour {
 	public GameObject panelFeedback;
 	public GameObject panelHighScore;
 	public GameObject panelNewHighScore;
-	public GameObject exitPanel;
+	public GameObject panelExit;
+	public GameObject panelLeaderboard;
 	[Header("Default")]
 	public int deadCounter = 0;
 	public bool isDead = false;
@@ -66,6 +67,13 @@ public class PlayerController : MonoBehaviour {
 		Social.localUser.Authenticate((bool success) => {
 			if(success){
 				_username = ((PlayGamesLocalUser)Social.localUser).userName;
+				if(!panelLeaderboard.activeSelf){
+					panelLeaderboard.SetActive(true);
+				}
+			}else{
+				if(panelLeaderboard.activeSelf){
+					panelLeaderboard.SetActive(false);
+				}
 			}
 		});
 	}
@@ -221,11 +229,11 @@ public class PlayerController : MonoBehaviour {
 	}
 
 	public void OpenExit(){
-		exitPanel.SetActive(true);
+		panelExit.SetActive(true);
 	}
 
 	public void CloseExit(){
-		exitPanel.SetActive(false);
+		panelExit.SetActive(false);
 	}
 
 	public void Exit(){
@@ -255,11 +263,11 @@ public class PlayerController : MonoBehaviour {
 		if(!panelRetry.activeSelf){	
 			panelRetry.SetActive(true);
 		}
-		
+
 		if(_username.Equals("")){
 			_textUsername.text = "";
 		}else{
-			_textUsername.text = _username;
+			_textUsername.text = "Hi " + _username;
 		}
 
 		_textScore.text = _step.ToString();
